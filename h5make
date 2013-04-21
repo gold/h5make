@@ -1,0 +1,362 @@
+#!/usr/bin/python
+
+#--------------------------------------------------------------------
+# Compile multiple JavaScript/CSS/Misc input files.
+#
+# manifest.yml defines which input files are to be compiled and where
+# the processed output will go.
+#
+# debug build applies no minification.
+#
+# release build applies minification except where overidden in
+# manifest.
+#
+# Copyright (c) 2012-Eternity by gold and Channelping.
+#
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation files
+# (the "Software"), to deal in the Software without restriction,
+# including without limitation the rights to use, copy, modify, merge,
+# publish, distribute, sublicense, and/or sell copies of the Software,
+# and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+# ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#--------------------------------------------------------------------
+
+import sys
+import os
+import re
+import yaml
+
+H5MAKE_VERSION = '1.0'
+
+
+def minify_modules_exist():
+    module_dependecy_errors = []
+    try:
+        __import__('slimit', globals(), locals(), ['minify'])
+    except ImportError:
+        module_dependecy_errors.append('sudo pip install slimit')
+
+    try:
+        __import__('cssmin', globals(), locals(), ['cssmin'])
+    except ImportError:
+        module_dependecy_errors.append('sudo pip install cssmin')
+
+    if len(module_dependecy_errors) > 0:
+        if len(module_dependecy_errors) >= 2:
+            plural = 's'
+        else:
+            plural = ''
+        print('\n    ERROR: You need to install missing minification module%s:\n' % plural)
+        for msg in module_dependecy_errors:
+            print('           %s' % msg)
+        print('')
+
+        return False
+    else:
+        return True
+# end minify_modules_exist()
+
+if minify_modules_exist():
+    from slimit import minify
+    from cssmin import cssmin
+else:
+    exit(1)
+
+
+class ConsoleOutput(object):
+    @staticmethod
+    def info(msg):
+        print(msg)
+
+    @staticmethod
+    def warning(msg):
+        print('\n    Warning: %s\n' % msg)
+
+    @staticmethod
+    def error(msg):
+        print('\n    ERROR: %s\n' % msg)
+        exit(1)
+# end ConsoleOutput class
+
+
+class Manifest(object):
+    """
+    data['embed' gets set to True if the following keys are
+    defined in manifest.yml:
+
+       HTMLTemplateFile, HTMLOutputFile
+
+     The HTMLTemplateFile should have the following tokens for
+     replacing the JavaScript and CSS content:
+
+        {__JAVASCRIPT__}
+        {__CSS__}
+    """
+
+    FILENAME = './manifest.yml'
+
+    @staticmethod
+    def check_manifest_exist():
+        if not os.path.exists(Manifest.FILENAME):
+            ConsoleOutput.error('"%s" does not exist.' % Manifest.FILENAME)
+
+    @staticmethod
+    def read():
+
+        Manifest.check_manifest_exist()
+
+        data = {}
+        data['embed'] = False
+
+        try:
+            fhandle = open(Manifest.FILENAME)
+            manifest = yaml.safe_load(fhandle)
+            fhandle.close()
+
+            if 'HTMLTemplateFile' in manifest:
+                data['embed'] = True
+                data['html_template_file'] = manifest['HTMLTemplateFile']
+                if 'HTMLOutputFile' in manifest:
+                    data['html_output_file'] = manifest['HTMLOutputFile']
+                else:
+                    ConsoleOutput.error('HTMLTemplateFile is defined, but missing HTMLOutputFile')
+
+            # These will be embedded in the defined token from the manifest
+            if 'InputMiscFiles' in manifest:
+                data['misc_input_files'] = manifest['InputMiscFiles']
+
+            # It is expected that these keys have been properly
+            # defined in manifest.yml
+            try:
+                data['js_input_files'] = manifest['InputJavaScriptFiles']
+                data['js_output_file'] = manifest['OutputJavaScriptFile']
+            except KeyError, ex:
+                if not data['embed']:
+                    ConsoleOutput.error('missing required key in manifest.yml %s' % str(ex))
+
+            # The folloing keys, on the other hand, are optional.
+            if 'InputCSSFiles' in manifest:
+                data['css_input_files'] = manifest['InputCSSFiles']
+            else:
+                data['css_input_files'] = []
+
+            if 'OutputCSSFile' in manifest:
+                data['css_output_file'] = manifest['OutputCSSFile']
+            else:
+                data['css_output_file'] = ''
+
+        except yaml.YAMLError, ex:
+            ConsoleOutput.error(str(ex))
+
+        return data
+    # end import method
+
+# end ImportManifest class
+
+
+class HTML5Make(object):
+
+    VALID_BUILD_TYPES = ('debug', 'release')
+
+    js_input_files = []
+    js_output_file = ''
+    css_input_files = []
+    css_output_file = ''
+
+    # release build strips out HTML comments and removes insignificant white-space
+    removeHtmlComments_rx = re.compile(r'<!--.+?-->', re.MULTILINE | re.DOTALL)
+    removeBlankLines_rx = re.compile(r'^\s*$\n', re.MULTILINE)
+    removeIndents_rx = re.compile(r'^\s+', re.MULTILINE)
+
+    def __init__(self, build_type):
+        self.build_type = build_type
+
+        # make sure build_type is valid
+        if not self.build_type in self.VALID_BUILD_TYPES:
+            ConsoleOutput.error('invalid build type [%s]' % self.build_type)
+
+        self.man = Manifest.read()
+    # end __init__
+
+    def compile_content_debug(self, input_file_list, file_type):
+
+        content_arr = []
+        content_str = ''
+        for file_obj in input_file_list:
+            txt = self.read_file(file_obj['file'])
+            content_arr.append(txt)
+        content_str = "\n".join(content_arr)
+
+        if len(content_arr) > 0:
+            if self.man['embed']:
+                ConsoleOutput.info('embedding %s' % file_type)
+            else:
+                if file_type == 'JavaScript':
+                    output_file = self.man['js_output_file']
+                elif file_type == 'CSS':
+                    output_file = self.man['css_output_file']
+                self.write_output_file(content_str, output_file)
+
+        return content_str
+    # end compile_content_debug
+
+    def compile_content_release(self, input_file_list, file_type):
+
+        content_arr = []
+        content_str = ''
+        for file_obj in input_file_list:
+            txt = self.read_file(file_obj['file'])
+            if 'minify' in file_obj and not file_obj['minify']:
+                content_arr.append(txt)
+            else:
+                if file_type == 'JavaScript':
+                    content_arr.append(minify(txt, mangle=True))
+                elif file_type == 'CSS':
+                    content_arr.append(cssmin(txt))
+        content_str = "\n".join(content_arr)
+
+        if len(content_arr) > 0:
+            if self.man['embed']:
+                ConsoleOutput.info('embedding %s' % file_type)
+            else:
+                if file_type == 'JavaScript':
+                    output_file = self.man['js_output_file']
+                elif file_type == 'CSS':
+                    output_file = self.man['css_output_file']
+                self.write_output_file(content_str, output_file)
+
+        return content_str
+    # end compile_content_release
+
+    def prepare_misc_data(self):
+        """
+        In the manifest, the InputMiscFiles list may not have like
+        tokens completely adjacent; The developer is not saddled with
+        that kind of restriction. Nonetheless, we're gonna munge the
+        data for proper concatenation so that the subsequent token
+        replace operation works as expected.
+        """
+        if 'misc_input_files' in self.man:
+            data = self.man['misc_input_files']
+        else:
+            return None
+
+        data_new_format = {}
+        for item in data:
+            token = item['token']
+            if not token in data_new_format:
+                data_new_format[token] = []
+            data_new_format[token].append(item['file'])
+        return data_new_format
+
+    def debug_build(self):
+        js_content = self.compile_content_debug(self.man['js_input_files'], 'JavaScript')
+        css_content = self.compile_content_debug(self.man['css_input_files'], 'CSS')
+
+        misc_data = self.prepare_misc_data()
+
+        if self.man['embed']:
+            self.generate_embedded_html_file(js_content, css_content, misc_data=misc_data)
+
+    def release_build(self):
+        js_content = self.compile_content_release(self.man['js_input_files'], 'JavaScript')
+        css_content = self.compile_content_release(self.man['css_input_files'], 'CSS')
+
+        misc_data = self.prepare_misc_data()
+
+        if self.man['embed']:
+            self.generate_embedded_html_file(js_content, css_content, misc_data=misc_data)
+
+    def generate_embedded_html_file(self, js_content, css_content, misc_data):
+        html = self.read_file(self.man['html_template_file'])
+
+        if misc_data is not None:
+            html = self.replace_misc_tokens_html_file(misc_data, html)
+
+        if self.build_type == 'release':
+            html = re.sub(self.removeHtmlComments_rx, '', html)
+            html = re.sub(self.removeBlankLines_rx,   '', html)
+            html = re.sub(self.removeIndents_rx,      '', html)
+
+        html = html.replace('{__JAVASCRIPT__}', js_content)
+        html = html.replace('{__CSS__}', css_content)
+
+        self.write_output_file(html, self.man['html_output_file'])
+
+    def replace_misc_tokens_html_file(self, misc_data, html):
+        """
+        misc_data looks like something like:
+            {
+             token_1: [filename_1],
+             token_2: [filename_1, filename_2, filename_3]
+            }
+        """
+
+        ConsoleOutput.info('embedding Misc Files')
+
+        for token_name, filenames in misc_data.items():
+            token_content_arr = []
+            for filename in filenames:
+                txt = self.read_file(filename)
+                token_content_arr.append(txt)
+
+            html = html.replace(token_name, "\n".join(token_content_arr))
+
+        return html
+    # end replace_misc_tokens_html_file
+
+    def write_output_file(self, content, filename):
+        try:
+            fhandle = open(filename, 'w')
+            try:
+                fhandle.write(content)
+            finally:
+                fhandle.close()
+        except IOError:
+            pass
+            ###ConsoleOutput.error(str(ex))
+
+    def read_file(self, filename):
+        if not os.path.exists(filename):
+            ConsoleOutput.error('"%s" does not exists' % filename)
+        return file(filename).read()
+# end class HTML5Make
+
+
+def main():
+    if len(sys.argv) != 2:
+        print('\n    USAGE: $ h5make {debug|release}\n')
+        exit(1)
+    else:
+        if sys.argv[1] == '--version':
+            print('h5make %s' % H5MAKE_VERSION)
+            exit(0)
+
+        h5m = HTML5Make(sys.argv[1])
+
+        if h5m.build_type == 'debug':
+            ConsoleOutput.info('making debug build')
+            h5m.debug_build()
+        else:
+            ConsoleOutput.info('making release build')
+            h5m.release_build()
+
+        exit(0)
+# end main()
+
+
+if __name__ == '__main__':
+    main()

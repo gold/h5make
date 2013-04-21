@@ -1,0 +1,93 @@
+#---------------------------------------------------------------------
+# This is SAMPLE manifest.yml file.
+#
+# Change the values to match your application's requirements.
+#
+# The following keys each represent an array of dictionaries:
+#
+#    InputJavaScriptFiles
+#    InputCSSFiles
+#    InputMiscFiles
+#
+# The defined order governs the order in which the file sets are
+# compiled into the target HTML file (typically index.html).
+#
+# Minification
+# ============
+#
+# Minification applies to JavaScript, CSS, and HTML
+#
+#   "debug" build will not apply minification.
+#   "release" build will minify unless a minify: false is present.
+#
+# HTML minification in release mode removes blank lines and left
+# indents only. Other white space that my be present could be
+# significant and therefore would be incorrect to remove.
+#---------------------------------------------------------------------
+
+#--------------------------------------------------------------------
+# JavaScript
+#
+# structure of each entry: {'file': string, 'minify': boolean}
+#
+# Note: minify: true is the default and is not necessary to include.
+#--------------------------------------------------------------------
+InputJavaScriptFiles:
+ - {file: '../js/jquery.js', minify: false}
+ - {file: 'lib/Utils.js'}
+ - {file: 'lib/jquery.md5.js'}
+ - {file: 'lib/CustomStations.js'}
+ - {file: 'lib/StationData.js'}
+ - {file: 'lib/TotalRecall.js'}
+ - {file: 'lib/Radio.js'}
+OutputJavaScriptFile: 'app.js'  # ignored if embedding resources
+
+
+#--------------------------------------------------------------------
+# Miscellaneous/Arbitrary files
+#
+# These will be embedded in index.html, replacing the defined tokens
+#
+# structure of each entry: {'file': string, 'token': string}
+#
+# Again, no minification applies to content defined in this section.
+#--------------------------------------------------------------------
+InputMiscFiles:
+ - {file: 'lib/js_template_01.html', token: '{__JS_TEMPLATES__}'}
+ - {file: 'lib/head_01.html',        token: '{__HEADER__}'}
+ - {file: 'lib/head_02.html',        token: '{__HEADER__}'}
+ - {file: 'lib/js_template_02.html', token: '{__JS_TEMPLATES__}'}
+ - {file: 'lib/js_template_03.html', token: '{__JS_TEMPLATES__}'}
+
+
+#--------------------------------------------------------------------
+# CSS
+#
+# stucture of each entry: {'file': string, 'minify': boolean}
+#
+# Note: minify: true is the default and is not necessary to include.
+#--------------------------------------------------------------------
+InputCSSFiles:
+ - {file: 'lib/main.css'}
+OutputCSSFile: 'app.css'  # ignored if embedding resources
+
+#--------------------------------------------------------------------
+# Embed JavaScript/CSS directly in HTML
+#
+# If the following keys are defined, then JavaScript, CSS (and if
+# InputMiscFiles are defined) will be embedded in the HTML instead of
+# relying on separate URI references on the server to JavaScript and
+# CSS resources.
+#
+# There is a great benefit to compile all client resources in a
+# single HTML file: expensive HTTP connections from mobile devices
+# are reduced to a single HTTP request when starting up the
+# application. Depending on how the application caching mechanisms
+# are implemented, HTTP clients that are reluctant to go to the
+# server for resources -- even when instructed to do so -- will not
+# suffer from missing important updates.
+#
+# Comment the following keys if you don't want to embed.
+#--------------------------------------------------------------------
+HTMLTemplateFile: 'lib/index_template.html'
+HTMLOutputFile: 'index.html'
