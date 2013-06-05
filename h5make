@@ -39,7 +39,7 @@ import os
 import re
 import yaml
 
-H5MAKE_VERSION = '1.0'
+H5MAKE_VERSION = '1.1'
 
 
 def minify_modules_exist():
@@ -137,6 +137,11 @@ class Manifest(object):
             # These will be embedded in the defined token from the manifest
             if 'InputMiscFiles' in manifest:
                 data['misc_input_files'] = manifest['InputMiscFiles']
+
+            # Optional entries in YAML to embed defined images into template
+            # as a data URI as the src attribute
+            if 'EmbeddedImages' in manifest:
+                data['embedded_images'] = manifest['EmbeddedImages']
 
             # It is expected that these keys have been properly
             # defined in manifest.yml
@@ -262,6 +267,22 @@ class HTML5Make(object):
             data_new_format[token].append(item['file'])
         return data_new_format
 
+    # called if manifiest.yml contains an EmbeddedImages section
+    def embed_images(self, html):
+        images = self.man['embedded_images']
+        for item in images:
+            filename = item['file']
+            token = item['token']
+            if not os.path.exists(filename):
+                ConsoleOutput.error('"%s" does not exist' % filename)
+
+            img_src_value = self.convert_img_src_to_data_uri(filename)
+
+            html = html.replace(token, img_src_value)
+
+        return html
+    # end embed_images
+
     def debug_build(self):
         js_content = self.compile_content_debug(self.man['js_input_files'], 'JavaScript')
         css_content = self.compile_content_debug(self.man['css_input_files'], 'CSS')
@@ -290,6 +311,9 @@ class HTML5Make(object):
             html = re.sub(self.removeHtmlComments_rx, '', html)
             html = re.sub(self.removeBlankLines_rx,   '', html)
             html = re.sub(self.removeIndents_rx,      '', html)
+
+        if ('embedded_images' in self.man):
+            html = self.embed_images(html)
 
         html = html.replace('{__JAVASCRIPT__}', js_content)
         html = html.replace('{__CSS__}', css_content)
@@ -331,8 +355,15 @@ class HTML5Make(object):
 
     def read_file(self, filename):
         if not os.path.exists(filename):
-            ConsoleOutput.error('"%s" does not exists' % filename)
+            ConsoleOutput.error('"%s" does not exist' % filename)
         return file(filename).read()
+
+    def convert_img_src_to_data_uri(self, filename):
+        if not os.path.exists(filename):
+            ConsoleOutput.error('"%s" does not exist' % filename)
+        img_base64 = open(filename, "rb").read().encode("base64").replace("\n", "")
+        img_src_value = 'data:image/png;base64,%s' % img_base64
+        return img_src_value
 # end class HTML5Make
 
 

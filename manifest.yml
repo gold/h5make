@@ -61,6 +61,28 @@ InputMiscFiles:
 
 
 #--------------------------------------------------------------------
+# Embedded Images
+#
+# In an effort to limit the number of HTTP requests a mobile device
+# needs to make, you can optionally embed graphic files directly into
+# your index.html file. This uses the data uri option of the img tag's
+# src attribute instead of a URL.
+#
+# Using the defined images below, your index template file might have
+# something like the following:
+#
+#    <img src="__LOGO__"/>
+#    <img src="__MY_IMAGE__"/>
+#
+# And the image file will be automagically embedded in the
+# application's index.html file.
+#--------------------------------------------------------------------
+EmbeddedImages:
+ - {file: 'lib/images/logotype.png',    token:  '__LOGO__'}
+ - {file: '/home/username/myimage.jpg', token: '__MY_IMAGE__'}
+
+
+#--------------------------------------------------------------------
 # CSS
 #
 # stucture of each entry: {'file': string, 'minify': boolean}
