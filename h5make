@@ -92,6 +92,21 @@ class ConsoleOutput(object):
 # end ConsoleOutput class
 
 
+class ImageMimeType(object):
+
+    image_map = {}
+    default_mime_type = 'image/png'
+
+    def __init__(self):
+        self.image_map = {"gif": "image/gif", "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png"}
+
+    def map(self, extension):
+        if extension in self.image_map:
+            return self.image_map[extension]
+        else:
+            return self.default_mime_type
+
+
 class Manifest(object):
     """
     data['embed' gets set to True if the following keys are
@@ -188,6 +203,7 @@ class HTML5Make(object):
 
     def __init__(self, build_type):
         self.build_type = build_type
+        self.image_mime_type = ImageMimeType()
 
         # make sure build_type is valid
         if not self.build_type in self.VALID_BUILD_TYPES:
@@ -358,11 +374,19 @@ class HTML5Make(object):
             ConsoleOutput.error('"%s" does not exist' % filename)
         return file(filename).read()
 
+    def get_mime_type_via_filename(self, filename):
+        extension = os.path.splitext(filename)[1][1:].lower()
+        return self.image_mime_type.map(extension)
+
     def convert_img_src_to_data_uri(self, filename):
         if not os.path.exists(filename):
             ConsoleOutput.error('"%s" does not exist' % filename)
+
+        # data_mime_type is either "image/gif", "image/jpeg", or "image/png"
+        data_mime_type = self.get_mime_type_via_filename(filename)
+
         img_base64 = open(filename, "rb").read().encode("base64").replace("\n", "")
-        img_src_value = 'data:image/png;base64,%s' % img_base64
+        img_src_value = 'data:{0};base64,{1}'.format(data_mime_type, img_base64)
         return img_src_value
 # end class HTML5Make
 
