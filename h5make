@@ -216,9 +216,14 @@ class HTML5Make(object):
 
         content_arr = []
         content_str = ''
-        for file_obj in input_file_list:
-            txt = self.read_file(file_obj['file'])
-            content_arr.append(txt)
+
+        if input_file_list is not None:
+            for file_obj in input_file_list:
+                txt = self.read_file(file_obj['file'])
+                content_arr.append(txt)
+        else:
+            ConsoleOutput.info("* {0} files are not defined in manifest.yml".format(file_type))
+
         content_str = "\n".join(content_arr)
 
         if len(content_arr) > 0:
@@ -238,15 +243,20 @@ class HTML5Make(object):
 
         content_arr = []
         content_str = ''
-        for file_obj in input_file_list:
-            txt = self.read_file(file_obj['file'])
-            if 'minify' in file_obj and not file_obj['minify']:
-                content_arr.append(txt)
-            else:
-                if file_type == 'JavaScript':
-                    content_arr.append(minify(txt, mangle=True))
-                elif file_type == 'CSS':
-                    content_arr.append(cssmin(txt))
+
+        if input_file_list is not None:
+            for file_obj in input_file_list:
+                txt = self.read_file(file_obj['file'])
+                if 'minify' in file_obj and not file_obj['minify']:
+                    content_arr.append(txt)
+                else:
+                    if file_type == 'JavaScript':
+                        content_arr.append(minify(txt, mangle=True))
+                    elif file_type == 'CSS':
+                        content_arr.append(cssmin(txt))
+        else:
+            ConsoleOutput.info("* {0} files are not defined in manifest.yml".format(file_type))            
+
         content_str = "\n".join(content_arr)
 
         if len(content_arr) > 0:
