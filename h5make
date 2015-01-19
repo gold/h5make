@@ -338,11 +338,11 @@ class HTML5Make(object):
             html = re.sub(self.removeBlankLines_rx,   '', html)
             html = re.sub(self.removeIndents_rx,      '', html)
 
-        if ('embedded_images' in self.man):
-            html = self.embed_images(html)
-
         html = html.replace('{__JAVASCRIPT__}', js_content)
         html = html.replace('{__CSS__}', css_content)
+
+        if ('embedded_images' in self.man):
+            html = self.embed_images(html)
 
         self.write_output_file(html, self.man['html_output_file'])
 
