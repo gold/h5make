@@ -98,7 +98,9 @@ class ImageMimeType(object):
     default_mime_type = 'image/png'
 
     def __init__(self):
-        self.image_map = {"gif": "image/gif", "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png"}
+        self.image_map = {"gif": "image/gif", "jpg": "image/jpeg",
+                          "jpeg": "image/jpeg", "png": "image/png",
+                          "ico": "image/x-icon"}
 
     def map(self, extension):
         if extension in self.image_map:
