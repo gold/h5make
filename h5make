@@ -38,8 +38,9 @@ import sys
 import os
 import re
 import yaml
+from pprint import pprint as pp
 
-H5MAKE_VERSION = '1.1'
+H5MAKE_VERSION = '1.2'
 
 
 def minify_modules_exist():
@@ -128,7 +129,7 @@ class Manifest(object):
     @staticmethod
     def check_manifest_exist():
         if not os.path.exists(Manifest.FILENAME):
-            ConsoleOutput.error('"%s" does not exist.' % Manifest.FILENAME)
+            ConsoleOutput.error('cannot find manifest file: "%s"' % Manifest.FILENAME)
 
     @staticmethod
     def read():
@@ -203,7 +204,11 @@ class HTML5Make(object):
     removeBlankLines_rx = re.compile(r'^\s*$\n', re.MULTILINE)
     removeIndents_rx = re.compile(r'^\s+', re.MULTILINE)
 
-    def __init__(self, build_type):
+    def __init__(self, build_type, custom_filename):
+        if custom_filename is not None:
+            Manifest.FILENAME = custom_filename
+            print('custom manifest file: {0}'.format(custom_filename))
+
         self.build_type = build_type
         self.image_mime_type = ImageMimeType()
 
@@ -224,7 +229,8 @@ class HTML5Make(object):
                 txt = self.read_file(file_obj['file'])
                 content_arr.append(txt)
         else:
-            ConsoleOutput.info("* {0} files are not defined in manifest.yml".format(file_type))
+            ConsoleOutput.info("* {0} files are not defined in manifest.yml"
+                .format(file_type))
 
         content_str = "\n".join(content_arr)
 
@@ -404,7 +410,10 @@ class HTML5Make(object):
 
 
 def main():
-    if len(sys.argv) != 2:
+
+    custom_filename = None
+
+    if len(sys.argv) < 2:
         print('\n    USAGE: $ h5make {debug|release}\n')
         exit(1)
     else:
@@ -412,7 +421,10 @@ def main():
             print('h5make %s' % H5MAKE_VERSION)
             exit(0)
 
-        h5m = HTML5Make(sys.argv[1])
+        if len(sys.argv) == 3:
+            custom_filename = sys.argv[2]
+
+        h5m = HTML5Make(sys.argv[1], custom_filename)
 
         if h5m.build_type == 'debug':
             ConsoleOutput.info('making debug build')
