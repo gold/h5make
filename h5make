@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+# pylint: skip-file
+# Make this script pylint compatible in next version.
+
 #--------------------------------------------------------------------
 # Compile multiple JavaScript/CSS/Misc input files.
 #
@@ -39,15 +42,15 @@ import os
 import re
 import yaml
 
-H5MAKE_VERSION = '1.2'
+H5MAKE_VERSION = '1.3'
 
 
 def minify_modules_exist():
     module_dependecy_errors = []
     try:
-        __import__('slimit', globals(), locals(), ['minify'])
+        __import__('rjsmin', globals(), locals(), ['jsmin'])
     except ImportError:
-        module_dependecy_errors.append('sudo pip install slimit')
+        module_dependecy_errors.append('sudo pip install rjsmin')
 
     try:
         __import__('cssmin', globals(), locals(), ['cssmin'])
@@ -70,7 +73,7 @@ def minify_modules_exist():
 # end minify_modules_exist()
 
 if minify_modules_exist():
-    from slimit import minify
+    from rjsmin import jsmin
     from cssmin import cssmin
 else:
     exit(1)
@@ -258,11 +261,11 @@ class HTML5Make(object):
                     content_arr.append(txt)
                 else:
                     if file_type == 'JavaScript':
-                        content_arr.append(minify(txt, mangle=True))
+                        content_arr.append(jsmin(txt))
                     elif file_type == 'CSS':
                         content_arr.append(cssmin(txt))
         else:
-            ConsoleOutput.info("* {0} files are not defined in manifest.yml".format(file_type))            
+            ConsoleOutput.info("* {0} files are not defined in manifest.yml".format(file_type))
 
         content_str = "\n".join(content_arr)
 
